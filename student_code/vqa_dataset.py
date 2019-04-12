@@ -118,13 +118,10 @@ class VqaDataset(Dataset):
 
         return vec
 
-    def _get_a_encoding(self, answer):
-        vec = np.zeros(self.a_vocab_size, dtype=np.int32)
+    def _get_answer_class(self, answer):
         if answer in self.a_vocab:
-            vec[self.a_vocab[answer]] = 1
-
-        vec = torch.from_numpy(vec)
-        return vec
+            return self.a_vocab[answer]
+        return 0    #Defaulting to 1st answer
     
     def _build_vocab(self, data, k_common=None):
         counter = Counter(data)
@@ -166,6 +163,6 @@ class VqaDataset(Dataset):
         possible_answers = entry['possible_answers']
         sampled_idx = np.random.choice(np.arange(0, len(ans_probs)), p=ans_probs)
         sampled_answer = possible_answers[sampled_idx]
-        ans_enc = self._get_a_encoding(sampled_answer)
+        ans_class = self._get_answer_class(sampled_answer)
 
-        return {'image_enc': img_feat, 'ques_enc': ques_enc, 'answer': ans_enc}
+        return {'image_enc': img_feat, 'ques_enc': ques_enc, 'answer': ans_class}
