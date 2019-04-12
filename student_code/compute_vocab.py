@@ -1,6 +1,7 @@
 from collections import Counter
 import os
 import re
+import json
 
 import sys
 sys.path.append('../')
@@ -35,6 +36,7 @@ def processPunctuation(inText):
 
 
 if __name__ == "__main__":
+    out_filename = sys.argv[1]
     current_dir = os.path.dirname(__file__)
     question_file = os.path.join(current_dir, "../data/OpenEnded_mscoco_train2014_questions.json")
     annotation_file = os.path.join(current_dir, "../data/mscoco_val2014_annotations.json")
@@ -62,4 +64,8 @@ if __name__ == "__main__":
         ans_list.append(mod_ans)
 
     a_vocab = build_vocab(ans_list, k_common=1000)
-    # print(a_vocab)
+    vocabs = {'q': q_vocab, 'a': a_vocab}
+
+    f = open(out_filename, "w")
+    json.dump(vocabs, f)
+    f.close()
