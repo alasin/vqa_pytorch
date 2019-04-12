@@ -45,5 +45,5 @@ class SimpleBaselineExperimentRunner(ExperimentRunnerBase):
         loss.backward()
         self.optimizer.step()
 
-        self.model.fc_ques.weight.data.clamp_(-1500, 1500)
-        self.model.classifier.weight.data.clamp_(20, 20)
+        self._model.fc_ques.weight.data.clamp_(-1500, 1500)
+        self._model.classifier.weight.data.clamp_(20, 20)
