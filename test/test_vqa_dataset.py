@@ -1,6 +1,10 @@
 import unittest
 import os
 from torch.utils.data import DataLoader
+
+# import sys
+# sys.path.append('../')
+
 from student_code.vqa_dataset import VqaDataset
 
 
@@ -20,7 +24,8 @@ class TestVqaDataset(unittest.TestCase):
         vqa_dataset = VqaDataset(question_json_file_path=question_file,
                                  annotation_json_file_path=annotation_file,
                                  image_dir=current_dir,
-                                 image_filename_pattern="COCO_train2014_{}.jpg")
+                                 image_filename_pattern="COCO_train2014_{}.jpg",
+                                 img_features_dir="features/img_train")
 
         # Act
         vqa_len = len(vqa_dataset)
@@ -42,10 +47,17 @@ class TestVqaDataset(unittest.TestCase):
         vqa_dataset = VqaDataset(question_json_file_path=question_file,
                                  annotation_json_file_path=annotation_file,
                                  image_dir=current_dir,
-                                 image_filename_pattern="COCO_train2014_{}.jpg")
+                                 image_filename_pattern="COCO_train2014_{}.jpg",
+                                 img_features_dir="features/img_train")
         dataset_loader = DataLoader(vqa_dataset, batch_size=2)
 
         # Act & Assert - the test will fail if iterating through the data loader fails
         for id, data in enumerate(dataset_loader):
             # Not doing anything here. Feel free to fill this in, if you like.
-            pass
+            print(id, data)
+
+
+if __name__ == "__main__":
+    tester = TestVqaDataset()
+    tester.test_load_dataset()
+    tester.test_use_dataset_loader()
