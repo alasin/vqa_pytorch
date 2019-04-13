@@ -10,12 +10,15 @@ if __name__ == "__main__":
     parser.add_argument('--train_image_dir', type=str)
     parser.add_argument('--train_question_path', type=str)
     parser.add_argument('--train_annotation_path', type=str)
+    parser.add_argument('--train_img_feat_path', type=str)
     parser.add_argument('--test_image_dir', type=str)
     parser.add_argument('--test_question_path', type=str)
     parser.add_argument('--test_annotation_path', type=str)
+    parser.add_argument('--test_img_feat_path', type=str)
+    parser.add_argument('--vocab_path', type=str)
     parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--num_epochs', type=int, default=100)
-    parser.add_argument('--num_data_loader_workers', type=int, default=10)
+    parser.add_argument('--num_data_loader_workers', type=int, default=4)
     args = parser.parse_args()
 
     if args.model == "simple":
@@ -28,9 +31,12 @@ if __name__ == "__main__":
     experiment_runner = experiment_runner_class(train_image_dir=args.train_image_dir,
                                                 train_question_path=args.train_question_path,
                                                 train_annotation_path=args.train_annotation_path,
+                                                train_img_feat_path=args.train_img_feat_path,
                                                 test_image_dir=args.test_image_dir,
                                                 test_question_path=args.test_question_path,
                                                 test_annotation_path=args.test_annotation_path,
+                                                test_img_feat_path=args.test_img_feat_path,
+                                                vocab_path=args.vocab_path,
                                                 batch_size=args.batch_size,
                                                 num_epochs=args.num_epochs,
                                                 num_data_loader_workers=args.num_data_loader_workers)

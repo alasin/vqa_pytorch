@@ -1,5 +1,5 @@
 import torch.nn as nn
-
+import torch
 
 class SimpleBaselineNet(nn.Module):
     """
@@ -16,8 +16,9 @@ class SimpleBaselineNet(nn.Module):
         self.classifier = nn.Linear(self.img_feat_size + self.q_embedding_size, self.a_vocab_size, bias=False)
 
     def forward(self, image_encoding, question_encoding):
+        image_encoding = image_encoding.view(image_encoding.shape[0], -1)
         q_embedding = self.fc_ques(question_encoding)
-        x = torch.cat((image_encoding, q_embedding), dim=1)
+        x = torch.cat((image_encoding, q_embedding), dim=-1)
         out = self.classifier(x)
 
         return out

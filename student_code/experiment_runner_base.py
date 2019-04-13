@@ -1,6 +1,8 @@
 from torch.utils.data import DataLoader
 import torch
+import torch.nn.functional as F
 
+import tensorboardX as tbx
 
 class ExperimentRunnerBase(object):
     """
@@ -25,6 +27,8 @@ class ExperimentRunnerBase(object):
         if self._cuda:
             self._model = self._model.cuda()
 
+        self.tb_logger = tbx.SummaryWriter()
+
     def _optimize(self, predicted_answers, true_answers):
         """
         This gets implemented in the subclasses. Don't implement this here.
@@ -32,11 +36,36 @@ class ExperimentRunnerBase(object):
         raise NotImplementedError()
 
     def validate(self):
-        # TODO. Should return your validation accuracy
-        raise NotImplementedError()
+        correct_answers = 0
+        total_answers = 0
+
+        self._model.eval()
+        for batch_id, batch_data in enumerate(self._val_dataset_loader):
+            image_encoding = batch_data['image_enc']
+            question_encoding = batch_data['ques_enc']
+            ground_truth_answer = batch_data['ans_enc']
+            if self._cuda:
+                image_encoding = image_encoding.cuda()
+                question_encoding = question_encoding.cuda()
+                ground_truth_answer = ground_truth_answer.cuda()
+            
+            batch_size = ground_truth_answer.shape[0]
+
+            logits = self._model(image_encoding, question_encoding)
+            probs = F.softmax(logits, dim=-1)
+            predicted_answer = torch.argmax(probs, dim=-1)
+
+            for i in range(batch_size):
+                counts = ground_truth_answer[i][predicted_answer[i]]
+                if self._cuda:
+                    counts = counts.cpu()
+                correct_answers = correct_answers + float(torch.min(counts/3, torch.ones(1)))
+            
+            total_answers = total_answers + batch_size
+
+        return (correct_answers / total_answers) * 100
 
     def train(self):
-
         for epoch in range(self._num_epochs):
             num_batches = len(self._train_dataset_loader)
 
@@ -45,10 +74,18 @@ class ExperimentRunnerBase(object):
                 current_step = epoch * num_batches + batch_id
 
                 # ============
-                # TODO: Run the model and get the ground truth answers that you'll pass to your optimizer
+                # Run the model and get the ground truth answers that you'll pass to your optimizer
                 # This logic should be generic; not specific to either the Simple Baseline or CoAttention.
-                predicted_answer = None # TODO
-                ground_truth_answer = None # TODO
+                image_encoding = batch_data['image_enc']
+                question_encoding = batch_data['ques_enc']
+                ground_truth_answer = batch_data['ans_enc']
+                if self._cuda:
+                    image_encoding = image_encoding.cuda()
+                    question_encoding = question_encoding.cuda()
+                    ground_truth_answer = ground_truth_answer.cuda()
+
+                # Not really predicted answers but logits
+                predicted_answer = self._model(image_encoding, question_encoding)
                 # ============
 
                 # Optimize the model according to the predictions
@@ -56,10 +93,10 @@ class ExperimentRunnerBase(object):
 
                 if current_step % self._log_freq == 0:
                     print("Epoch: {}, Batch {}/{} has loss {}".format(epoch, batch_id, num_batches, loss))
-                    # TODO: you probably want to plot something here
+                    self.tb_logger.add_scalar('train/loss', loss, current_step)
 
                 if current_step % self._test_freq == 0:
                     self._model.eval()
                     val_accuracy = self.validate()
                     print("Epoch: {} has val accuracy {}".format(epoch, val_accuracy))
-                    # TODO: you probably want to plot something here
+                    self.tb_logger.add_scalar('val/accuracy', val_accuracy, current_step)

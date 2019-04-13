@@ -13,8 +13,10 @@ punct        = [';', r"/", '[', ']', '"', '{', '}',
                 '(', ')', '=', '+', '\\', '_', '-',
                 '>', '<', '@', '`', ',', '?', '!']
 
-def build_vocab(data, k_common=None):
+def build_vocab(data, threshold=None, k_common=None):
     counter = Counter(data)
+    if threshold:
+        counter = Counter(dict(filter(lambda x: x[1] >= threshold, counter.items())))
     words = counter.keys()
     if k_common:
         words = counter.most_common(n=k_common)
@@ -59,7 +61,7 @@ if __name__ == "__main__":
             mod_ans = handle_punctuation(answer)
             ans_list.append(mod_ans)
 
-    q_vocab = build_vocab(ques_list)
+    q_vocab = build_vocab(ques_list, threshold=6)
     a_vocab = build_vocab(ans_list, k_common=2000)
     vocabs = {'q': q_vocab, 'a': a_vocab}
 
