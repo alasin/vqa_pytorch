@@ -24,7 +24,7 @@ def build_vocab(data, k_common=None):
     vocab = {t: i for i, t in enumerate(tokens)}
     return vocab
 
-def processPunctuation(inText):
+def handle_punctuation(inText):
     outText = inText
     for p in punct:
         if (str(p + ' ') in inText or str(' ' + p) in inText) or (re.search(commaStrip, inText) != None):
@@ -36,34 +36,31 @@ def processPunctuation(inText):
 
 
 if __name__ == "__main__":
-    out_filename = sys.argv[1]
-    current_dir = os.path.dirname(__file__)
-    question_file = os.path.join(current_dir, "../data/OpenEnded_mscoco_train2014_questions.json")
-    annotation_file = os.path.join(current_dir, "../data/mscoco_val2014_annotations.json")
+
+    question_file = sys.argv[1]
+    annotation_file = sys.argv[2]
+    out_filename = sys.argv[3]
     vqa_db = VQA(annotation_file, question_file)
 
-
-    questions = [q['question'] for q in vqa_db.questions['questions']]
     ques_list = []
-    for question in questions:
+    ans_list = []
+    for q_id, annotation in vqa_db.qa.items():
+        question = vqa_db.qqa[q_id]['question']
         question = question.lower()[:-1]
-        question.replace('?', '') #Just in case
+        question = question.replace('?', '') #Just in case
         words = question.split(' ')
-        for w in words:
-            ques_list.append(w)
+        ques_list += words
+
+        answer_objs = annotation['answers']
+
+        possible_answers = [a['answer'] for a in answer_objs]
+
+        for answer in possible_answers:
+            mod_ans = handle_punctuation(answer)
+            ans_list.append(mod_ans)
 
     q_vocab = build_vocab(ques_list)
-    # print(q_vocab)
-    
-    answer_objs = [ans_obj['answers'] for ans_obj in vqa_db.dataset['annotations']]
-    answers = [a[0]['answer'] for a in answer_objs]
-    ans_list = []
-
-    for answer in answers:
-        mod_ans = processPunctuation(answer)
-        ans_list.append(mod_ans)
-
-    a_vocab = build_vocab(ans_list, k_common=1000)
+    a_vocab = build_vocab(ans_list, k_common=2000)
     vocabs = {'q': q_vocab, 'a': a_vocab}
 
     f = open(out_filename, "w")
