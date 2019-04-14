@@ -16,10 +16,6 @@ How should that information be encoded as Tensors? If you consider multiple opti
 6. `__getitem__` returns a dictionary with 3 items - 1024-dim image feature, `q_vocab_size`-dim question encoding and `a_vocab_size`-dim answer encoding.
 
 
-### Deliverables
-1. Your response to Q1.
-1. A vqa_dataset.py that passes unit tests.
-
 ## Task 2: Simple Baseline (30 points)
 
 **Q2** Describe your implementation in brief, focusing on any design decisions you made: e.g what loss and optimizer you used, any training parameters you picked,
@@ -32,10 +28,9 @@ Optimizer: SGD
 
 Unlike the paper, I didn't do any weight/gradient clipping. I tried it initially but my loss wasn't going down. Original source code of the paper uses a threshold of 3 for an answer to be kept in the vocabulary, I didn't enforce any threshold and just used the top 2000 most frequent answers. Ground truth answer was chosen using a majority vote (argmax of answer occurences). Accuracy was computed as described in the original VQA paper for open-ended task.
 
-### Deliverables
-1. Your response to Q2.
-1. Implementations in experiment_runner_base.py, simple_baseline_experiment_runner.py, simple_baseline_net.py
-1. Graphs of loss and accuracy during training.
+Accuracy after 10 epochs: 48.54%
+
+![curves](images/loss_simple.png)
 
 
 ## Task 3: Co-Attention Network (30 points)
@@ -96,14 +91,3 @@ For 10 bonus points:
     1. If you tweak one of your existing implementations, please copy the network to a new, clearly named file before changing it.
 1. Training loss and test accuracy graphs for your idea. 
 
-
-## Relevant papers:
-[1] VQA: Visual Question Answering (Agrawal et al, 2016): https://arxiv.org/pdf/1505.00468v6.pdf
-
-[2] Simple Baseline for Visual Question Answering (Zhou et al, 2015): https://arxiv.org/pdf/1512.02167.pdf
-
-[3] Hierarchical Question-Image Co-Attention for Visual Question Answering (Lu et al, 2017):  https://arxiv.org/pdf/1606.00061.pdf
-
-[4] Making the V in VQA Matter: Elevating the Role of Image Understanding in Visual Question Answering (Goyal, Khot et al, 2017):  https://arxiv.org/pdf/1612.00837.pdf
-
-[5] Stacked Attention Networks for Image Question Answering (Yang et al, 2016): https://arxiv.org/pdf/1511.02274.pdf
