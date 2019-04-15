@@ -1,5 +1,6 @@
 from torch.utils.data import Dataset
 from external.vqa.vqa import VQA
+import torch.utils.data as data
 
 from os import listdir
 from os.path import isfile, join
@@ -53,6 +54,9 @@ class VqaDataset(Dataset):
             print("Populating data structures...")
             i = 0
             for q_id, annotation in vqa_db.qa.items():
+                if i == 500:
+                    break
+                i += 1
                 entry = {}
                 question = vqa_db.qqa[q_id]['question']
                 question = question.lower()[:-1]
@@ -95,16 +99,26 @@ class VqaDataset(Dataset):
         self.a_vocab = vocab['a']
         self.a_vocab_size = len(self.a_vocab.keys())
 
+    def _encode_question(self, question):
+        """ Turn a question into a vector of indices and a question length """
+        vec = torch.zeros(self.max_question_length).long()
+        for i, token in enumerate(question):
+            index = self.token_to_index.get(token, 0)
+            vec[i] = index
+        return vec, len(question)
 
     def _get_q_encoding(self, question):
-        vec = np.zeros(self.q_vocab_size, dtype=np.float32)
-        for token in question:
+        oh_vec = np.zeros(self.q_vocab_size, dtype=np.float32)
+        vec = torch.zeros(self.max_words_in_ques).long()
+        for i, token in enumerate(question):
             if token in self.q_word_vocab:
-                vec[self.q_word_vocab[token]] = 1
+                index = self.q_word_vocab[token]
+                oh_vec[index] = 1
+                vec[i] = index
 
-        vec = torch.from_numpy(vec)
+        oh_vec = torch.from_numpy(oh_vec)
 
-        return vec
+        return oh_vec, vec, len(question)
 
     def _get_a_encoding(self, answers):
         vec = np.zeros(self.a_vocab_size, dtype=np.float32)
@@ -144,9 +158,16 @@ class VqaDataset(Dataset):
         entry = self.dataset[idx]
         img_feat = np.load(entry['img_feat_loc'])
         ques = entry['ques']
-        ques_enc = self._get_q_encoding(ques)
+        ques_enc_oh, ques_enc, ques_len = self._get_q_encoding(ques)
 
         possible_answers = entry['possible_answers']
         ans_encoding = self._get_a_encoding(possible_answers)
 
-        return {'image_enc': img_feat, 'ques_enc': ques_enc, 'ans_enc': ans_encoding}
+        return {'image_enc': img_feat, 'ques_enc': ques_enc, 'ques_enc_oh':ques_enc_oh, 'ques_len':ques_len, 'ans_enc': ans_encoding}
+
+
+# Source: https://github.com/Cyanogenoid/pytorch-vqa/blob/master/data.py 
+def collate_fn(batch):
+    # put question lengths in descending order so that we can use packed sequences later
+    batch.sort(key=lambda x: x['ques_len'], reverse=True)
+    return data.dataloader.default_collate(batch)

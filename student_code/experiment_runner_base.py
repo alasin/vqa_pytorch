@@ -4,6 +4,9 @@ import torch.nn.functional as F
 
 import tensorboardX as tbx
 
+# There must be some cleaner way to do this
+from student_code.vqa_dataset import collate_fn
+
 class ExperimentRunnerBase(object):
     """
     This base class contains the simple train and validation loops for your VQA experiments.
@@ -16,10 +19,18 @@ class ExperimentRunnerBase(object):
         self._log_freq = 10  # Steps
         self._test_freq = 250  # Steps
 
-        self._train_dataset_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_data_loader_workers)
+        self._train_dataset_loader = DataLoader(train_dataset,
+                                                batch_size=batch_size,
+                                                shuffle=True,
+                                                num_workers=num_data_loader_workers,
+                                                collate_fn=collate_fn)
 
         # If you want to, you can shuffle the validation dataset and only use a subset of it to speed up debugging
-        self._val_dataset_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_data_loader_workers)
+        self._val_dataset_loader = DataLoader(val_dataset,
+                                              batch_size=batch_size,
+                                              shuffle=False,
+                                              num_workers=num_data_loader_workers,
+                                              collate_fn=collate_fn)
 
         # Use the GPU if it's available.
         self._cuda = torch.cuda.is_available()
@@ -43,15 +54,19 @@ class ExperimentRunnerBase(object):
         for batch_id, batch_data in enumerate(self._val_dataset_loader):
             image_encoding = batch_data['image_enc']
             question_encoding = batch_data['ques_enc']
+            question_encoding_oh = batch_data['ques_enc_oh']
+            question_length = batch_data['ques_len']
             ground_truth_answer = batch_data['ans_enc']
             if self._cuda:
                 image_encoding = image_encoding.cuda()
                 question_encoding = question_encoding.cuda()
+                question_encoding_oh = question_encoding_oh.cuda()
+                question_length = question_length.cuda()
                 ground_truth_answer = ground_truth_answer.cuda()
             
             batch_size = ground_truth_answer.shape[0]
 
-            logits = self._model(image_encoding, question_encoding)
+            logits = self._model(image_encoding, question_encoding, question_encoding_oh, question_length)
             probs = F.softmax(logits, dim=-1)
             predicted_answer = torch.argmax(probs, dim=-1)
 
@@ -78,14 +93,18 @@ class ExperimentRunnerBase(object):
                 # This logic should be generic; not specific to either the Simple Baseline or CoAttention.
                 image_encoding = batch_data['image_enc']
                 question_encoding = batch_data['ques_enc']
+                question_encoding_oh = batch_data['ques_enc_oh']
+                question_length = batch_data['ques_len']
                 ground_truth_answer = batch_data['ans_enc']
                 if self._cuda:
                     image_encoding = image_encoding.cuda()
                     question_encoding = question_encoding.cuda()
+                    question_encoding_oh = question_encoding_oh.cuda()
+                    question_length = question_length.cuda()
                     ground_truth_answer = ground_truth_answer.cuda()
 
                 # Not really predicted answers but logits
-                predicted_answer = self._model(image_encoding, question_encoding)
+                predicted_answer = self._model(image_encoding, question_encoding, question_encoding_oh, question_length)
                 # ============
 
                 # Optimize the model according to the predictions

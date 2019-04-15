@@ -25,7 +25,8 @@ class TestVqaDataset(unittest.TestCase):
                                  annotation_json_file_path=annotation_file,
                                  image_dir=current_dir,
                                  image_filename_pattern="COCO_train2014_{}.jpg",
-                                 img_features_dir="features/img_train")
+                                 img_features_dir="features/img_train",
+                                 vocab_json_filename="features/vocab.json")
 
         # Act
         vqa_len = len(vqa_dataset)
@@ -48,7 +49,8 @@ class TestVqaDataset(unittest.TestCase):
                                  annotation_json_file_path=annotation_file,
                                  image_dir=current_dir,
                                  image_filename_pattern="COCO_train2014_{}.jpg",
-                                 img_features_dir="features/img_train")
+                                 img_features_dir="features/img_train",
+                                 vocab_json_filename="features/vocab.json")
         dataset_loader = DataLoader(vqa_dataset, batch_size=2)
 
         # Act & Assert - the test will fail if iterating through the data loader fails
