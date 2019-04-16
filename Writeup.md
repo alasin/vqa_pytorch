@@ -8,12 +8,12 @@
 How should that information be encoded as Tensors? If you consider multiple options, explain your thought process in picking. What preprocessing should be done? 
 
 **Answer**:
-1. Pre-computed the GoogleNet features for all the images and saved them as `.npy` files. Code is in `compute_googlenet_feat.py`.
+1. Pre-computed the GoogleNet and ResNet18 features for all the images and saved them as `.npy` files. Code is in `compute_googlenet_feat.py` and `compute_resnet_feat.py`.
 2. Pre-computed a vocabulary for both questions and answers from the training set and saved them as a `.json` file. Questions were first tokenized into individual words and were kept in vocabulary only if their count is greater than a threshold (6). Answers were preprocessed to handle punctuation and special characters. The top k (2000) answers were kept in vocabulary. Code is in `compute_vocab.py`.
 3. Both the directory containing image features and the vocabulary json filename are passed as parameters to the dataset initializer.
-4. Questions are encoded as a binary vector (tensor) of dimension `q_vocab_size` where `q_vocab_size` is the number of words in question vocabulary. The vector's value at an index is 1 if the word corresponding to that index is present in vocabulary.
+4. Questions are encoded in two ways. First, as a binary vector (tensor) of dimension `q_vocab_size` where `q_vocab_size` is the number of words in question vocabulary. The vector's value at an index is 1 if the word corresponding to that index is present in vocabulary. Second, as a `max_question_length` vector of integer indices which stores the vocabulary index of every word in the question. This encoding is used for task 3.
 5. Answers are encoded as integer vectors of dimension `a_vocab_size` where `a_vocab_size` is the number of words in answer vocabulary. The vector's value at an index is `count` where `count` is the number of times it was chosen as an answer by a human. Answers could also be encoded as a one-hot vector where the correct answer is chosen as the majority answer among the candidates (which is already happening but during training). A reason for not doing this during data loading is that `count` is required for evaluating metrics during training/testing.
-6. `__getitem__` returns a dictionary with 3 items - 1024-dim image feature, `q_vocab_size`-dim question encoding and `a_vocab_size`-dim answer encoding.
+6. `__getitem__` returns a dictionary with 5 items - `image_enc`: n-dim image feature (depending on task), `ques_enc`:`max_question_length`-dim integer question encoding, `ques_enc_oh`:`q_vocab_size`-dim binary question encoding, `ans_enc`:`a_vocab_size`-dim integer question encoding and `ques_len`: number of words in a question. 
 
 
 ## Task 2: Simple Baseline (30 points)
@@ -34,46 +34,20 @@ Accuracy after 10 epochs: 48.54%
 
 
 ## Task 3: Co-Attention Network (30 points)
-In this task you'll implement [3]. This paper introduces three things not used in the Simple Baseline paper: hierarchical question processing, attention, and 
-the use of recurrent layers. You may choose to do either parallel or alternating co-attention (or both, if you're feeling inspired).
-
-The paper explains attention fairly thoroughly, so we encourage you to, in particular, closely read through section 3.3 of the paper.
-
-To implement the Co-Attention Network you'll need to:
-
-1. Implement CoattentionExperimentRunner's optimize method. 
-1. Implement CoattentionNet
-    1. Encode the image in a way that maintains some spatial awareness (see recommendation 1 below).
-    1. Implement the hierarchical language embedding (words, phrases, question)
-        1. Hint: All three layers of the hierarchy will still have a sequence length identical to the original sequence length. 
-        This is necessary for attention, though it may be unintuitive for the question encoding.
-    1. Implement your selected co-attention method
-    1. Attend to each layer of the hierarchy, creating an attended image and question feature for each
-    1. Combine these features to predict the final answer
-
-You may find the implementation of the network to be nontrivial. Here are some recommendations:
-
-1. Pay attention to the image encoding; you may want to skim through [5] to get a sense for why they upscale the images.
-1. Consider the attention mechanism separately from the hierarchical question embedding. In particular, you may consider writing 
-a separate nn.Module that handles only attention (e.g some "AttentionNet"), that the CoattentionNet can then use.
-1. Review the ablation section of the paper (4.4). You can see that you can get good results using only simpler subsets of the 
-larger network. You can use this fact to test small subnets (e.g images alone, without any question hierarchy at all), then 
-slowly build up the network while making sure that training is still proceeding effectively.
-1. The paper uses a batch_size of 300, which we recommend using if you can. One way you can make this work is to pre-compute 
-the pretrained network's (e.g ResNet) encodings of your images and cache them, and then load those instead of the full images. This reduces the amount of 
-data you need to pull into memory, and greatly increases the size of batches you can run.
-    1. This is why we recommended you create a larger AWS Volume, so you have a convenient place to store this cache.
-
-Once again feel free to refer to the official Torch implementation: https://github.com/jiasenlu/HieCoAttenVQA
 
 **Q3** As in the above sections, describe your implementation in brief, e.g loss, optimizer, any decisions you made just to speed up training, etc.
  If you make changes from the original paper, describe here what you changed and why. 
 
+**Answer**:\
+Number of epochs: 10\
+Loss: Softmax Cross Entropy for 2000 classes\
+Optimizer: Adam
 
-### Deliverables
-1. Your response to Q3.
-1. Implementations in coattention_experiment_runner.py, coattention_net.py
-1. Graphs of loss and accuracy during training.
+Unlike the paper, I used Adam with LR 1e-4 instead of RMSprop as RMSprop wasn't really converging (or taking too long). I also used a single layer LSTM unlike the 2-layer LSTM used in official implementation. Dimension of all the embeddings (questions, images, hidden) is 512. Different from the previous task, the question is encoded using a learnable embedding lookup table. Question length is used to pack every question embedding before being passed to the LSTM. Both Alternate and Parallel Co-Attention have been implemented. Results shown are for Parallel Co-Attention. Ground truth answer was chosen using a majority vote (argmax of answer occurences). Accuracy was computed as described in the original VQA paper for open-ended task.
+
+Accuracy after 10 epochs: 51.53%
+
+![curves](images/loss_parallel.png)
 
 
 ## Task 4: Custom Network  (10 points + 10 bonus points)
@@ -81,6 +55,15 @@ Brainstorm some ideas for improvements to existing methods or novel ways to appr
 
 For 10 extra points, pick at least one method and try it out. It's okay if it doesn't beat the baselines, we're looking for 
 creativity here; not all interesting ideas work out. 
+
+**Answer**:
+1. A simple modification to the implementation in Task 3 is changing the LSTM to a GRU. This reduces the number of parameters, albeit not by much, but faster convergence and better results for same hyperparameters. Code is in `coattention_net_gru.py`. Comparison between the loss/accuracy curves is shown below.
+
+2. Another simple modification to the implementation in Task 3 is changing the way how visual and question features are fused. Replacing addition with Hadamard product at all heirarchies results in faster convergence and better results. Code is in `coattention_net_hadamard.py`. Comparison between the loss/accuracy curves is shown below.
+
+3. The current classification loss is a hard penalty based on the majority answer. I tried formulating the problem as a multi-label classification problem with answer being a many-hot vector based on annotations and weights assigned to every answer based on the answer confidence from the annotation. The binary cross-entropy loss per class is then weighted accordingly. While the loss reduced, the accuracy didn't change at all. The network converged to a trivial solution most probably. The modified code is in 3 files - `vqa_dataset_bce.py`, `coattention_experiment_runner_bce.py`, and `experiment_runner_base_bce.py`.
+
+![curves](images/loss_all.png)
 
 ### Deliverables
 1. A list of a few ideas (at least 3, the more the better).
