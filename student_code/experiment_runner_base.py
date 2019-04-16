@@ -23,6 +23,7 @@ class ExperimentRunnerBase(object):
                                                 batch_size=batch_size,
                                                 shuffle=True,
                                                 num_workers=num_data_loader_workers,
+                                                pin_memory=True,
                                                 collate_fn=collate_fn)
 
         # If you want to, you can shuffle the validation dataset and only use a subset of it to speed up debugging
@@ -30,6 +31,7 @@ class ExperimentRunnerBase(object):
                                               batch_size=batch_size,
                                               shuffle=False,
                                               num_workers=num_data_loader_workers,
+                                              pin_memory=True,
                                               collate_fn=collate_fn)
 
         # Use the GPU if it's available.
@@ -58,11 +60,11 @@ class ExperimentRunnerBase(object):
             question_length = batch_data['ques_len']
             ground_truth_answer = batch_data['ans_enc']
             if self._cuda:
-                image_encoding = image_encoding.cuda()
-                question_encoding = question_encoding.cuda()
-                question_encoding_oh = question_encoding_oh.cuda()
-                question_length = question_length.cuda()
-                ground_truth_answer = ground_truth_answer.cuda()
+                image_encoding = image_encoding.cuda(async=True)
+                question_encoding = question_encoding.cuda(async=True)
+                question_encoding_oh = question_encoding_oh.cuda(async=True)
+                question_length = question_length.cuda(async=True)
+                ground_truth_answer = ground_truth_answer.cuda(async=True)
             
             batch_size = ground_truth_answer.shape[0]
 
@@ -70,11 +72,10 @@ class ExperimentRunnerBase(object):
             probs = F.softmax(logits, dim=-1)
             predicted_answer = torch.argmax(probs, dim=-1)
 
-            for i in range(batch_size):
-                counts = ground_truth_answer[i][predicted_answer[i]]
-                if self._cuda:
-                    counts = counts.cpu()
-                correct_answers = correct_answers + float(torch.min(counts/3, torch.ones(1)))
+            counts = ground_truth_answer[torch.arange(batch_size), predicted_answer]
+            if self._cuda:
+                counts = counts.cpu()
+            correct_answers = correct_answers + float(torch.sum(torch.min(counts/3, torch.ones(1))))
             
             total_answers = total_answers + batch_size
 
@@ -97,11 +98,11 @@ class ExperimentRunnerBase(object):
                 question_length = batch_data['ques_len']
                 ground_truth_answer = batch_data['ans_enc']
                 if self._cuda:
-                    image_encoding = image_encoding.cuda()
-                    question_encoding = question_encoding.cuda()
-                    question_encoding_oh = question_encoding_oh.cuda()
-                    question_length = question_length.cuda()
-                    ground_truth_answer = ground_truth_answer.cuda()
+                    image_encoding = image_encoding.cuda(async=True)
+                    question_encoding = question_encoding.cuda(async=True)
+                    question_encoding_oh = question_encoding_oh.cuda(async=True)
+                    question_length = question_length.cuda(async=True)
+                    ground_truth_answer = ground_truth_answer.cuda(async=True)
 
                 # Not really predicted answers but logits
                 predicted_answer = self._model(image_encoding, question_encoding, question_encoding_oh, question_length)
@@ -114,7 +115,8 @@ class ExperimentRunnerBase(object):
                     print("Epoch: {}, Batch {}/{} has loss {}".format(epoch, batch_id, num_batches, loss))
                     self.tb_logger.add_scalar('train/loss', loss, current_step)
 
-                if current_step % self._test_freq == 0:
+                # if current_step % self._test_freq == 0:
+                if batch_id == (num_batches - 1):
                     self._model.eval()
                     val_accuracy = self.validate()
                     print("Epoch: {} has val accuracy {}".format(epoch, val_accuracy))

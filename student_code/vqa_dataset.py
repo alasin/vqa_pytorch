@@ -54,9 +54,9 @@ class VqaDataset(Dataset):
             print("Populating data structures...")
             i = 0
             for q_id, annotation in vqa_db.qa.items():
-                if i == 500:
-                    break
-                i += 1
+                # if i == 500:
+                #     break
+                # i += 1
                 entry = {}
                 question = vqa_db.qqa[q_id]['question']
                 question = question.lower()[:-1]
