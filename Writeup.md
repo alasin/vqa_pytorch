@@ -65,12 +65,3 @@ creativity here; not all interesting ideas work out.
 
 ![curves](images/loss_all.png)
 
-### Deliverables
-1. A list of a few ideas (at least 3, the more the better).
-
-For 10 bonus points:
-
-1. Code implementing at least one of the ideas.
-    1. If you tweak one of your existing implementations, please copy the network to a new, clearly named file before changing it.
-1. Training loss and test accuracy graphs for your idea. 
-
